@@ -1,0 +1,6 @@
+{
+  "name": "Clipboard Listener",
+  "description": "A minimalist microblog-style app that automatically monitors and displays your clipboard text every 3 seconds, designed for reading, learning, and integration with translation/lookup browser extensions.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
