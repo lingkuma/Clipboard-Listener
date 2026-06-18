@@ -15,4 +15,5 @@ export interface ReaderSettings {
   isListening: boolean;
   intervalMs: number;
   theme: 'light' | 'dark';
+  language: 'zh' | 'en';
 }

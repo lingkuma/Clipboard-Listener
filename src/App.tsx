@@ -2,9 +2,10 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { 
   Clipboard, Moon, Sun, Play, Square, RefreshCw, 
   Trash2, Type, Sliders, Settings, Check, Copy, 
-  ExternalLink, Sparkles, BookOpen, AlertCircle, Edit3, Save, X
+  ExternalLink, Sparkles, BookOpen, AlertCircle, Edit3, Save, X, Languages
 } from 'lucide-react';
 import { ClipboardClip, ReaderSettings, FontStyle } from './types';
+import { translations } from './translations';
 import ControlDeck from './components/ControlDeck';
 import ClipHistory from './components/ClipHistory';
 
@@ -14,7 +15,10 @@ export default function App() {
     try {
       const saved = localStorage.getItem('clipboard_settings');
       if (saved) {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        // Ensure language is set
+        if (!parsed.language) parsed.language = 'zh';
+        return parsed;
       }
     } catch (e) {
       console.error('Failed reading settings', e);
@@ -26,8 +30,11 @@ export default function App() {
       isListening: true,
       intervalMs: 3000,
       theme: 'light',
+      language: 'zh',
     };
   });
+
+  const t = translations[settings.language] || translations.zh;
 
   // --- 2. THEME INITIATOR ---
   useEffect(() => {
@@ -124,8 +131,8 @@ export default function App() {
     // Assigning a brand new random string forces React to fully unmount
     // the previous text element and mount a new one. This triggers the extension!
     setElementKey(`rect-${Date.now()}-${Math.random()}`);
-    triggerToast('📋 检测到新剪纸，已重新构建 DOM 结构！');
-  }, [history]);
+    triggerToast(t.rebuiltToast);
+  }, [history, t]);
 
   // --- 5. CLIPBOARD READING LOOP ---
   const performClipboardCheck = useCallback(async () => {
@@ -133,14 +140,14 @@ export default function App() {
 
     // Check secure context
     if (!navigator.clipboard) {
-      setClipboardWarning('浏览器拒绝了当前上下文环境中的剪切板读取，请确保使用 HTTPS。如果处于 preview 的 iframe 中，请点击下方的按钮，在新窗口中打开此网页。');
+      setClipboardWarning(t.iframeWarning);
       return;
     }
 
     try {
       // Prioritize checking focus to prevent console warnings
       if (!document.hasFocus()) {
-        setClipboardWarning('当前窗口处于未激活状态。请点击页面任意处激活焦点以恢复后台监听。');
+        setClipboardWarning(t.unfocusedWarning);
         return;
       }
 
@@ -151,14 +158,14 @@ export default function App() {
       }
     } catch (err: any) {
       if (err.name === 'NotAllowedError') {
-        setClipboardWarning('剪贴板读取请求被拒绝。请在上方地址栏为本站点击 允许剪贴板读取，或者通过下面的“贴入”输入手动导入。');
+        setClipboardWarning(t.deniedWarning);
       } else if (err.message && err.message.includes('document is not focused')) {
-        setClipboardWarning('当前窗口处于失焦状态。点击页面任意位置重新授权读取。');
+        setClipboardWarning(t.clickToFocus);
       } else {
-        setClipboardWarning(`获取失败: ${err.message || '未知异常'}`);
+        setClipboardWarning(`${t.failToFetch}: ${err.message || 'Error'}`);
       }
     }
-  }, [settings.isListening, handleNewTextEntered]);
+  }, [settings.isListening, handleNewTextEntered, t]);
 
   // Handle periodic intervals
   useEffect(() => {
@@ -196,7 +203,7 @@ export default function App() {
     // 🔥 Trigger full DOM elements recreation on manual historic loading
     setElementKey(`load-${clip.id}-${Date.now()}`);
     setIsEditing(false);
-    triggerToast('📖 已载入选定便签，重构文本 DOM。');
+    triggerToast(t.toastLoaded);
   };
 
   const handleDeleteClip = (id: string) => {
@@ -211,15 +218,15 @@ export default function App() {
         setActiveClipId(null);
       }
     }
-    triggerToast('🗑️ 便签已成功删除');
+    triggerToast(t.toastDeleted);
   };
 
   const clearAllHistory = () => {
-    if (window.confirm('您确定要清除所有的剪切板记录吗？这将无法恢复。')) {
+    if (window.confirm(t.clearConfirm)) {
       saveHistoryToStorage([]);
       setActiveClipId(null);
       lastFetchedTextRef.current = '';
-      triggerToast('🧹 历史便签已清空');
+      triggerToast(t.toastCleared);
     }
   };
 
@@ -228,10 +235,10 @@ export default function App() {
     try {
       await navigator.clipboard.writeText(activeClip.text);
       setIsCopied(true);
-      triggerToast('✨ 全文已重新写入您的剪切板');
+      triggerToast(t.toastCopied);
       setTimeout(() => setIsCopied(false), 2000);
     } catch (err) {
-      triggerToast('❌ 无法写入剪贴板，请手动选定文本复制');
+      triggerToast(t.toastErrCopy);
     }
   };
 
@@ -263,7 +270,7 @@ export default function App() {
     
     // 🔥 Rebuild DOM elements immediately for edits
     setElementKey(`edit-${activeClip.id}-${Date.now()}`);
-    triggerToast('💾 修改已保存，正在重新组装 DOM...');
+    triggerToast(t.toastDOMErr);
   };
 
   // --- 7. HELPFUL IFRAME CONSTANT INQUIRER ---
@@ -326,17 +333,17 @@ export default function App() {
             </div>
             <div>
               <h1 className="text-sm font-semibold tracking-wide font-sans">
-                Clipboard Listener
+                {t.appName}
               </h1>
               <p className="text-[10px] text-stone-400 dark:text-stone-500 font-mono flex items-center gap-1 leading-none">
                 <span className={`inline-block w-1.5 h-1.5 rounded-full ${settings.isListening ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}`}></span>
-                {settings.isListening ? '监听服务保持直连' : '服务已暂停'}
+                {settings.isListening ? t.statusListening : t.statusPaused}
               </p>
             </div>
           </div>
 
           {/* Quick-toggle Header Bar */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-2 sm:space-x-3">
             
             {/* Iframe detection notice */}
             {isIframe() && (
@@ -344,12 +351,22 @@ export default function App() {
                 href={window.location.href}
                 target="_blank" 
                 rel="noopener noreferrer"
-                className="hidden sm:flex items-center gap-1 text-[11px] bg-stone-100 hover:bg-stone-200 dark:bg-stone-900 dark:hover:bg-stone-800 px-2.5 py-1 rounded-lg text-stone-500 dark:text-stone-400 transition"
+                className="hidden md:flex items-center gap-1 text-[11px] bg-stone-100 hover:bg-stone-200 dark:bg-stone-900 dark:hover:bg-stone-800 px-2.5 py-1 rounded-lg text-stone-500 dark:text-stone-400 transition"
               >
                 <ExternalLink className="w-3 h-3" />
-                新窗口打开 (防限制)
+                {t.openNewTab}
               </a>
             )}
+
+            {/* Language Selection Switch - Chinese or English */}
+            <button
+              onClick={() => updateSettings({ language: settings.language === 'zh' ? 'en' : 'zh' })}
+              className="px-3 py-1.5 rounded-xl border border-stone-200 dark:border-stone-800 text-[11px] font-semibold tracking-wider text-stone-600 hover:text-stone-900 dark:text-stone-400 dark:hover:text-stone-100 hover:bg-stone-100/50 dark:hover:bg-stone-900/50 cursor-pointer transition flex items-center gap-1.5 font-sans"
+              title={settings.language === 'zh' ? 'Switch to English' : '切换至中文模式'}
+            >
+              <Languages className="w-3.5 h-3.5 text-stone-400 dark:text-stone-500" />
+              <span>{settings.language === 'zh' ? 'EN' : '中文'}</span>
+            </button>
 
             {/* Light / Dark Mode Toggle */}
             <button
@@ -381,14 +398,14 @@ export default function App() {
                     rel="noopener noreferrer"
                     className="font-bold underline flex items-center gap-0.5 hover:text-amber-900 dark:hover:text-amber-200"
                   >
-                    新贴页打开解锁
+                    {t.newTabOpenUnlock}
                     <ExternalLink className="w-3 h-3 inline" />
                   </a>
                   <button 
                     onClick={() => performClipboardCheck()}
                     className="font-bold underline text-stone-700 dark:text-stone-300 hover:text-stone-950"
                   >
-                    重试检测
+                    {t.retryDetect}
                   </button>
                 </div>
               )}
@@ -412,11 +429,11 @@ export default function App() {
                   {/* Article Stats & Actions */}
                   <div className="flex flex-wrap items-center justify-between border-b border-stone-200/50 dark:border-stone-800/50 pb-4 mb-6 gap-2">
                     <div className="flex items-center space-x-2 text-xs text-stone-400 dark:text-stone-500 font-mono">
-                      <span>{new Date(activeClip.timestamp).toLocaleString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} 捕获</span>
+                      <span>{new Date(activeClip.timestamp).toLocaleString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })} {t.capturedAt}</span>
                       <span>•</span>
-                      <span>{activeClip.text.length} 字符</span>
+                      <span>{activeClip.text.length} {t.charUnit}</span>
                       <span>•</span>
-                      <span>{activeClip.text.split(/\s+/).filter(Boolean).length} 词</span>
+                      <span>{activeClip.text.split(/\s+/).filter(Boolean).length} {t.wordUnit}</span>
                     </div>
 
                     <div className="flex items-center space-x-2">
@@ -427,36 +444,36 @@ export default function App() {
                             className="flex items-center gap-1.5 text-xs bg-emerald-600 hover:bg-emerald-700 text-white font-medium py-1.5 px-3 rounded-lg transition shadow-sm cursor-pointer"
                           >
                             <Save className="w-3.5 h-3.5" />
-                            保存 DOM
+                            {t.saveDOM}
                           </button>
                           <button
                             onClick={() => setIsEditing(false)}
                             className="flex items-center gap-1 text-xs bg-stone-100 dark:bg-stone-800 hover:bg-stone-200 text-stone-600 dark:text-stone-300 py-1.5 px-2.5 rounded-lg transition cursor-pointer"
                           >
                             <X className="w-3.5 h-3.5" />
-                            取消
+                            {t.cancel}
                           </button>
                         </>
                       ) : (
                         <>
                           <span className="hidden sm:inline-block text-[10px] text-emerald-600 dark:text-emerald-400/80 bg-emerald-50 dark:bg-emerald-950/20 px-2 py-0.5 rounded font-sans font-medium">
-                            🌿 DOM 重构触发防护中
+                            {t.domProtection}
                           </span>
                           <button
                             onClick={handleStartEdit}
                             className="flex items-center gap-1 text-xs text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-[#ffffff] pr-2 font-medium cursor-pointer"
-                            title="修改文本内容"
+                            title="Edit content"
                           >
                             <Edit3 className="w-3.5 h-3.5" />
-                            <span className="hidden sm:inline">微调</span>
+                            <span className="hidden sm:inline">{t.tweak}</span>
                           </button>
                           <button
                             onClick={forceCopyText}
                             className="flex items-center gap-1 text-xs text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-[#ffffff] font-medium cursor-pointer"
-                            title="一键写入剪切板"
+                            title="Copy directly"
                           >
                             {isCopied ? <Check className="w-3.5 h-3.5 text-emerald-500" /> : <Copy className="w-3.5 h-3.5" />}
-                            <span>{isCopied ? '已复制' : '复制'}</span>
+                            <span>{isCopied ? t.copiedStatus : t.copy}</span>
                           </button>
                         </>
                       )}
@@ -481,7 +498,7 @@ export default function App() {
                         className={`text-stone-850 dark:text-stone-200 ${getLineHeightClass()} transition-opacity animate-fade-in`}
                         style={{ fontSize: `${settings.fontSize}px` }}
                         onDoubleClick={forceCopyText}
-                        title="双击直接复制全文内容"
+                        title={t.doubleClickTip}
                       >
                         {activeClip.text.split('\n').map((paragraph, idx) => {
                           const isLineEmpty = !paragraph.trim();
@@ -506,11 +523,10 @@ export default function App() {
                     <BookOpen className="w-8 h-8" />
                   </div>
                   <h2 className="text-lg font-semibold text-stone-800 dark:text-stone-200 mb-2 font-sans">
-                    准备开始捕获并阅读记录
+                    {t.emptyTitle}
                   </h2>
                   <p className="max-w-md mx-auto text-xs leading-relaxed text-stone-400 dark:text-stone-500 mb-8 font-sans">
-                    目前网页剪切板自动监测服务为 <b>每隔 {settings.intervalMs / 1000} 秒</b> 获取一次。
-                    只需在微信、浏览器或其他应用中选中文字进行<b>“复制”</b>，本站将秒级自动响应重构新 DOM 并更新呈现。
+                    {t.emptyDesc(settings.intervalMs / 1000)}
                   </p>
                   
                   {/* Starter button */}
@@ -519,7 +535,7 @@ export default function App() {
                       onClick={() => handleNewTextEntered('Here is the first piece of text for reading. The English plugin has a neat translation popover if you double-click or click on single words inside this container.\n\nNow, go ahead and copy any sentence or text from other windows, and you will see actual magic here!')}
                       className="inline-flex items-center gap-1.5 py-2.5 px-5 bg-stone-800 hover:bg-stone-950 dark:bg-stone-100 dark:hover:bg-[#ffffff] text-stone-50 dark:text-stone-900 text-xs font-semibold rounded-xl cursor-pointer transition shadow-sm"
                     >
-                      💡 导入测试英文段落
+                      {t.importTestPara}
                     </button>
                     {isIframe() && (
                       <a
@@ -528,7 +544,7 @@ export default function App() {
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1 py-2.5 px-4 bg-stone-200 hover:bg-stone-300 dark:bg-stone-900 dark:hover:bg-stone-800 text-stone-700 dark:text-stone-300 text-xs font-medium rounded-xl transition"
                       >
-                        在新标签页打开
+                        {t.openTab}
                         <ExternalLink className="w-3.5 h-3.5" />
                       </a>
                     )}
@@ -544,6 +560,7 @@ export default function App() {
                 activeId={activeClipId}
                 onSelectClip={handleSelectClip}
                 onDeleteClip={handleDeleteClip}
+                language={settings.language}
               />
             </div>
           </section>
@@ -555,10 +572,10 @@ export default function App() {
             <div className="space-y-6">
               
               {/* Core Control Board Title */}
-              <div className="hidden lg:block pb-2 border-b border-stone-200/50 dark:border-stone-800/50">
+              <div className="hidden lg:block pb-2 border-b border-stone-200/50 dark:border-stone-800/50 font-sans">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-stone-400 dark:text-stone-500 font-sans flex items-center gap-1.5">
-                  <Settings className="w-4 h-4" />
-                  控制台设定
+                  <Sliders className="w-4 h-4" />
+                  {t.consoleTitle}
                 </h2>
               </div>
 
@@ -575,18 +592,18 @@ export default function App() {
               {/* Minimalist instructions card */}
               <div className="p-5 rounded-2xl bg-[#faf9f6] dark:bg-[#151515] text-stone-400 dark:text-stone-500 border border-stone-200/50 dark:border-stone-800 text-[11px] leading-relaxed space-y-2 font-sans">
                 <span className="font-semibold block text-stone-600 dark:text-stone-400 flex items-center gap-1.5 font-sans justify-between">
-                  <span>DOM 深度重构说明</span>
-                  <span className="inline-block px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-500 text-[9px] font-mono leading-none">ENABLED</span>
+                  <span>{t.domIntroTitle}</span>
+                  <span className="inline-block px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-500 text-[9px] font-mono leading-none">AUTO_REMOUNT</span>
                 </span>
                 <p>
-                  每次加载新的复制内容时，本页面不会仅仅重写文字内容。相反，<b>整个阅读框的 DOM 节点会被彻底销毁重建</b>（通过更新 React key 强制重现）。
+                  {t.domIntroText1}
                 </p>
                 <p>
-                  这一设定完美兼容您的<b>高亮、词典与生词翻译翻译浏览器插件</b>，强制其在新装载的词句中重新扫描，从而在您进行新复制阅读时能够实现点击即查，省去手动重新翻译或刷新页面的繁琐。
+                  {t.domIntroText2}
                 </p>
                 <div className="pt-1.5 border-t border-stone-200/60 dark:border-stone-800/40 text-[10px] text-stone-400 dark:text-stone-500 flex items-center justify-between font-mono">
-                  <span>框架引擎: React 19 / Tailwind 4</span>
-                  <span>版本: 1.2.0</span>
+                  <span>{t.engineDetails}</span>
+                  <span>{t.versionNum}</span>
                 </div>
               </div>
             </div>
@@ -598,7 +615,7 @@ export default function App() {
       {/* Footer copyright */}
       <footer className="mt-20 py-8 border-t border-stone-200/50 dark:border-stone-900/50 text-center text-xs text-stone-400 dark:text-stone-500 transition-colors">
         <div className="max-w-7xl mx-auto px-6">
-          <p>© 2026 Clipboard Listener. 一款面向阅读、精细翻译、专为词典插件打造的极简微博客监听工具。</p>
+          <p>{t.footerText}</p>
         </div>
       </footer>
 

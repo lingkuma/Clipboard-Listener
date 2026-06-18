@@ -4,6 +4,7 @@ import {
   Trash2, RefreshCw, Sun, Moon, HelpCircle
 } from 'lucide-react';
 import { ReaderSettings, FontStyle } from '../types';
+import { translations } from '../translations';
 
 interface ControlDeckProps {
   settings: ReaderSettings;
@@ -27,9 +28,11 @@ export default function ControlDeck({
   const [showTester, setShowTester] = useState(false);
   const [testText, setTestText] = useState('');
 
+  const t = translations[settings.language] || translations.zh;
+
   const fontSizes = [
     { label: 'A-', size: Math.max(14, settings.fontSize - 2) },
-    { label: 'Normal', size: 18 },
+    { label: settings.language === 'en' ? 'Reset' : '重置', size: 20 },
     { label: 'A+', size: Math.min(38, settings.fontSize + 2) }
   ];
 
@@ -51,11 +54,11 @@ export default function ControlDeck({
   };
 
   return (
-    <div className="flex flex-col space-y-6">
+    <div className="flex flex-col space-y-6 animate-fade-in">
       {/* 🟢 LISTENER STATUS BUTTONS */}
       <div className="bg-stone-100/60 dark:bg-stone-900/60 p-4 rounded-xl border border-stone-200/50 dark:border-stone-800/50 backdrop-blur-sm transition-colors">
         <h3 className="text-xs font-semibold tracking-wider uppercase text-stone-400 dark:text-stone-500 mb-3 flex items-center justify-between">
-          <span>监听状态</span>
+          <span>{t.listenStatus}</span>
           <span className="flex h-2 w-2 relative">
             <span className={`animate-ping absolute inline-flex h-full w-full rounded-full opacity-75 ${settings.isListening ? 'bg-emerald-400' : 'bg-amber-400'}`}></span>
             <span className={`relative inline-flex rounded-full h-2 w-2 ${settings.isListening ? 'bg-emerald-500' : 'bg-amber-500'}`}></span>
@@ -72,7 +75,7 @@ export default function ControlDeck({
             }`}
           >
             <Play className="w-3.5 h-3.5" />
-            自动监听
+            {t.autoListen}
           </button>
           <button
             onClick={() => onChangeSettings({ isListening: false })}
@@ -83,7 +86,7 @@ export default function ControlDeck({
             }`}
           >
             <Square className="w-3.5 h-3.5" />
-            暂停监听
+            {t.pauseListen}
           </button>
         </div>
 
@@ -92,11 +95,11 @@ export default function ControlDeck({
           className="w-full flex items-center justify-center gap-2 py-2 px-3 text-xs bg-stone-800 hover:bg-stone-900 dark:bg-stone-200 dark:hover:bg-stone-100 text-white dark:text-stone-900 rounded-lg font-medium cursor-pointer transition-all"
         >
           <RefreshCw className="w-3.5 h-3.5 animate-spin-hover" />
-          立即获取一次
+          {t.getOnce}
         </button>
 
         <div className="mt-3 flex items-center justify-between text-[11px] text-stone-400 dark:text-stone-500">
-          <span>间隔：</span>
+          <span>{t.intervalLabel}</span>
           <div className="flex space-x-1.5">
             {[1000, 3000, 5000].map((ms) => (
               <button
@@ -108,7 +111,7 @@ export default function ControlDeck({
                     : 'hover:text-stone-700 dark:hover:text-stone-300 cursor-pointer'
                 }`}
               >
-                {ms / 1000}秒
+                {ms / 1000}{t.secondsUnit}
               </button>
             ))}
           </div>
@@ -119,7 +122,7 @@ export default function ControlDeck({
       <div className="bg-stone-100/60 dark:bg-stone-900/60 p-4 rounded-xl border border-stone-200/50 dark:border-stone-800/50 backdrop-blur-sm transition-colors">
         <h3 className="text-xs font-semibold tracking-wider uppercase text-stone-400 dark:text-stone-500 mb-3 flex items-center gap-1.5">
           <Type className="w-4 h-4" />
-          <span>字体风格</span>
+          <span>{t.fontStyleLabel}</span>
         </h3>
 
         <div className="grid grid-cols-3 gap-1.5 mb-4">
@@ -133,7 +136,7 @@ export default function ControlDeck({
                   : 'bg-stone-200/50 dark:bg-stone-800/50 text-stone-600 dark:text-stone-400 hover:bg-stone-200 dark:hover:bg-stone-800'
               }`}
             >
-              {font === 'serif' ? '优雅衬线' : font === 'sans' ? '极简无衬' : '等宽代码'}
+              {font === 'serif' ? t.serifStyle : font === 'sans' ? t.sansStyle : t.monoStyle}
             </button>
           ))}
         </div>
@@ -141,7 +144,7 @@ export default function ControlDeck({
         {/* 📐 FONT SIZE ADJUSTMENT */}
         <div className="mb-4">
           <div className="flex items-center justify-between text-xs text-stone-500 dark:text-stone-400 mb-1.5">
-            <span>字号大小</span>
+            <span>{t.fontSizeLabel}</span>
             <span className="font-mono font-medium">{settings.fontSize}px</span>
           </div>
 
@@ -171,12 +174,12 @@ export default function ControlDeck({
 
         {/* 📋 LINE SPACING */}
         <div>
-          <span className="block text-xs text-stone-500 dark:text-stone-400 mb-1.5">行高间距</span>
+          <span className="block text-xs text-stone-500 dark:text-stone-400 mb-1.5">{t.lineSpacingLabel}</span>
           <div className="grid grid-cols-3 gap-1.5">
             {[
-              { id: 'normal', label: '紧凑' },
-              { id: 'relaxed', label: '舒适' },
-              { id: 'loose', label: '宽松' }
+              { id: 'normal', label: t.compactSpacing },
+              { id: 'relaxed', label: t.comfortableSpacing },
+              { id: 'loose', label: t.looseSpacing }
             ].map((lh) => (
               <button
                 key={lh.id}
@@ -199,14 +202,14 @@ export default function ControlDeck({
         <div className="flex items-center justify-between mb-2">
           <h3 className="text-xs font-semibold tracking-wider uppercase text-stone-400 dark:text-stone-500 flex items-center gap-1.5">
             <Clipboard className="w-4 h-4" />
-            <span>测试剪切板</span>
+            <span>{t.testerTitle}</span>
           </h3>
           <button 
             type="button"
             onClick={() => setShowTester(!showTester)}
             className="text-[11px] text-stone-500 hover:text-stone-800 dark:text-stone-400 dark:hover:text-stone-200 font-medium cursor-pointer underline"
           >
-            {showTester ? '收起' : '手动贴入'}
+            {showTester ? t.testerToggleHide : t.testerToggleShow}
           </button>
         </div>
 
@@ -215,7 +218,7 @@ export default function ControlDeck({
             <textarea
               value={testText}
               onChange={(e) => setTestText(e.target.value)}
-              placeholder="如果您处于 iframe 内部导致浏览器拒绝自动授权，可在此手动贴入一些文字测试..."
+              placeholder={t.testerPlaceholder}
               rows={3}
               className="w-full p-2 text-xs bg-white dark:bg-stone-950 border border-stone-200 dark:border-stone-800 rounded-lg text-stone-800 dark:text-stone-100 focus:outline-none focus:ring-1 focus:ring-stone-400 dark:focus:ring-stone-600 font-sans"
             />
@@ -224,12 +227,12 @@ export default function ControlDeck({
               disabled={!testText.trim()}
               className="w-full py-1.5 px-3 bg-stone-800 hover:bg-stone-900 dark:bg-stone-200 dark:hover:bg-stone-100 text-white dark:text-stone-900 font-medium text-xs rounded-lg transition disabled:opacity-40 cursor-pointer"
             >
-              模拟复制输入
+              {t.testerSubmit}
             </button>
           </form>
         ) : (
           <p className="text-[11px] leading-relaxed text-stone-400 dark:text-stone-500">
-            由于浏览器安全策略限制，部分环境下可能需允许网站访问剪贴板，或通过本窗口完成一次点击激活。
+            {t.testerDesc}
           </p>
         )}
       </div>
@@ -241,7 +244,7 @@ export default function ControlDeck({
           className="w-full flex items-center justify-center gap-2 py-2 px-3 text-xs bg-red-50/50 hover:bg-red-50 dark:bg-red-950/20 dark:hover:bg-red-950/40 text-red-600 dark:text-red-400 border border-red-100 dark:border-red-950/40 rounded-xl font-medium transition cursor-pointer"
         >
           <Trash2 className="w-3.5 h-3.5" />
-          清除所有历史记录
+          {t.clearAllHistory}
         </button>
       </div>
     </div>
