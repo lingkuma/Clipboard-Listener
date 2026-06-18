@@ -12,12 +12,21 @@ import ClipHistory from './components/ClipHistory';
 export default function App() {
   // --- 1. SETTINGS & APP STATE DEFAULTS ---
   const [settings, setSettings] = useState<ReaderSettings>(() => {
+    // Detect system language: defaults to 'en', but 'zh' if standard system language is Chinese
+    let detectedLang: 'zh' | 'en' = 'en';
+    if (typeof navigator !== 'undefined') {
+      const navLang = (navigator.language || (navigator.languages && navigator.languages[0]) || '').toLowerCase();
+      if (navLang.startsWith('zh')) {
+        detectedLang = 'zh';
+      }
+    }
+
     try {
       const saved = localStorage.getItem('clipboard_settings');
       if (saved) {
         const parsed = JSON.parse(saved);
-        // Ensure language is set
-        if (!parsed.language) parsed.language = 'zh';
+        // Ensure language is set based on either saved value or system detection
+        if (!parsed.language) parsed.language = detectedLang;
         return parsed;
       }
     } catch (e) {
@@ -30,7 +39,7 @@ export default function App() {
       isListening: true,
       intervalMs: 3000,
       theme: 'light',
-      language: 'zh',
+      language: detectedLang,
     };
   });
 
